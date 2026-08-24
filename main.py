@@ -44,7 +44,7 @@ def extract_place(page: Page) -> Place:
     website_xpath = '//a[@data-item-id="authority"]//div[contains(@class, "fontBodyMedium")]'
     phone_number_xpath = '//button[contains(@data-item-id, "phone:tel:")]//div[contains(@class, "fontBodyMedium")]'
     reviews_count_xpath = '//div[@class="TIHn2 "]//div[@class="fontBodyMedium dmRWX"]//div//span//span//span[@aria-label]'
-    reviews_average_xpath = '//div[@class="TIHn2 "]//div[@class="fontBodyMedium dmRWX"]//div//span[@aria-hidden]'
+    reviews_average_xpath = '//div[contains(@class, "F7nice")]//span[@aria-hidden="true"]'
     info1 = '//div[@class="LTs0Rc"][1]'
     info2 = '//div[@class="LTs0Rc"][2]'
     info3 = '//div[@class="LTs0Rc"][3]'
@@ -69,14 +69,26 @@ def extract_place(page: Page) -> Place:
             place.reviews_count = int(temp)
         except Exception as e:
             logging.warning(f"Failed to parse reviews count: {e}")
-    # Reviews Average
-    reviews_avg_raw = extract_text(page, reviews_average_xpath)
-    if reviews_avg_raw:
-        try:
-            temp = reviews_avg_raw.replace(' ','').replace(',','.')
-            place.reviews_average = float(temp)
-        except Exception as e:
-            logging.warning(f"Failed to parse reviews average: {e}")
+   # Reviews Average (Version robuste avec fallbacks)
+    try:
+        # On essaie le nouveau XPath, puis un chemin plus large si ça échoue
+        locators = [
+            page.locator('//div[contains(@class, "F7nice")]//span[@aria-hidden="true"]').first,
+            page.locator('//span[contains(@aria-label, "étoiles") or contains(@aria-label, "stars")]').first,
+            page.locator(reviews_average_xpath).first
+        ]
+        
+        for loc in locators:
+            if loc.count() > 0:
+                raw_text = loc.inner_text()
+                # On vérifie que le texte commence bien par un chiffre (ex: "4,5")
+                if raw_text and raw_text[0].isdigit():
+                    # On isole le chiffre et on remplace la virgule par un point
+                    temp = raw_text.split('\n')[0].replace(' ', '').replace(',', '.')
+                    place.reviews_average = float(temp)
+                    break # On a trouvé la note, on sort de la boucle
+    except Exception as e:
+        logging.warning(f"Failed to parse reviews average: {e}")
     # Store Info
     for idx, info_xpath in enumerate([info1, info2, info3]):
         info_raw = extract_text(page, info_xpath)
