@@ -130,7 +130,23 @@ def scrape_places(search_for: str, total: int) -> List[Place]:
         page = browser.new_page()
         try:
             page.goto("https://www.google.com/maps/@32.9817464,70.1930781,3.67z?", timeout=60000)
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(1500) # Petite pause pour laisser la redirection se faire
+            
+            # --- AJOUT : GESTION AUTOMATIQUE DES COOKIES ---
+            try:
+                # On cherche le bouton "Tout accepter" ou "Accepter tout"
+                bouton_cookies = page.locator('button:has-text("Tout accepter"), button:has-text("Accepter tout")').first
+                # On lui laisse maximum 5 secondes pour apparaitre
+                bouton_cookies.wait_for(state="visible", timeout=5000)
+                bouton_cookies.click()
+                logging.info("Cookies acceptés automatiquement.")
+                # On attend 2 secondes que Google nous ramène sur la carte
+                page.wait_for_timeout(2000)
+            except Exception:
+                # Si la popup n'apparait pas, on ignore et on continue
+                logging.info("Pas de popup de cookies détectée.")
+            # -----------------------------------------------
+            
             page.locator("//form[contains(@jsaction,'searchboxFormSubmit')]//input[@name='q']").fill(search_for)
             page.keyboard.press("Enter")
             page.wait_for_selector('//a[contains(@href, "https://www.google.com/maps/place")]')
