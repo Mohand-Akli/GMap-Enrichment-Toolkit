@@ -1,5 +1,3 @@
-import textwrap
-code = textwrap.dedent('''
 import logging
 from typing import List, Optional
 from playwright.sync_api import sync_playwright, Page
@@ -67,7 +65,7 @@ def extract_place(page: Page) -> Place:
     reviews_count_raw = extract_text(page, reviews_count_xpath)
     if reviews_count_raw:
         try:
-            temp = reviews_count_raw.replace('\\xa0', '').replace('(','').replace(')','').replace(',','').replace('\\u202f', '').replace(' ', '')
+            temp = reviews_count_raw.replace('\xa0', '').replace('(','').replace(')','').replace(',','').replace('\u202f', '').replace(' ', '')
             place.reviews_count = int(temp)
         except Exception as e:
             logging.warning(f"Failed to parse reviews count: {e}")
@@ -87,7 +85,7 @@ def extract_place(page: Page) -> Place:
                 # On vérifie que le texte commence bien par un chiffre (ex: "4,5")
                 if raw_text and raw_text[0].isdigit():
                     # On isole le chiffre et on remplace la virgule par un point
-                    temp = raw_text.split('\\n')[0].replace(' ', '').replace(',', '.')
+                    temp = raw_text.split('\n')[0].replace(' ', '').replace(',', '.')
                     place.reviews_average = float(temp)
                     break # On a trouvé la note, on sort de la boucle
     except Exception as e:
@@ -99,7 +97,7 @@ def extract_place(page: Page) -> Place:
         if info_raw:
             temp = info_raw.split('·')
             if len(temp) > 1:
-                check = temp[1].replace("\\n", "").lower()
+                check = temp[1].replace("\n", "").lower()
                 if 'shop' in check:
                     place.store_shopping = "Yes"
                 if 'pickup' in check:
@@ -112,17 +110,17 @@ def extract_place(page: Page) -> Place:
     if opens_at_raw:
         opens = opens_at_raw.split('⋅')
         if len(opens) > 1:
-            place.opens_at = opens[1].replace("\\u202f","")
+            place.opens_at = opens[1].replace("\u202f","")
         else:
-            place.opens_at = opens_at_raw.replace("\\u202f","")
+            place.opens_at = opens_at_raw.replace("\u202f","")
     else:
         opens_at2_raw = extract_text(page, opens_at_xpath2)
         if opens_at2_raw:
             opens = opens_at2_raw.split('⋅')
             if len(opens) > 1:
-                place.opens_at = opens[1].replace("\\u202f","")
+                place.opens_at = opens[1].replace("\u202f","")
             else:
-                place.opens_at = opens_at2_raw.replace("\\u202f","")
+                place.opens_at = opens_at2_raw.replace("\u202f","")
                 
     return place
 
@@ -131,7 +129,7 @@ def scrape_places(search_for: str, total: int) -> List[Place]:
     places: List[Place] = []
     with sync_playwright() as p:
         if platform.system() == "Windows":
-            browser_path = r"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe"
+            browser_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
             browser = p.chromium.launch(executable_path=browser_path, headless=False)
         else:
             browser = p.chromium.launch(headless=False)
@@ -240,12 +238,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-''')
-
-# Write to a file just to verify it compiles (ast parse)
-import ast
-try:
-    ast.parse(code)
-    print("Syntax is valid.")
-except Exception as e:
-    print("Syntax error:", e)
