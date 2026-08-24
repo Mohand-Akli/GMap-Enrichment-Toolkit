@@ -1,5 +1,8 @@
 import subprocess
 import time
+import pandas as pd
+import glob
+import os
 
 villes = ["Charleroi", "Liège", "Namur", "Mons", "La Louvière", "Tournai", "Verviers", "Mouscron", "Bruxelles"]
 processus = []
@@ -14,11 +17,54 @@ for ville in villes:
     p = subprocess.Popen(commande)
     processus.append(p)
     
-    # Petite pause de 2 secondes entre chaque lancement pour ne pas surcharger le processeur d'un coup
+    # Petite pause de 2 secondes entre chaque lancement pour ménager le processeur
     time.sleep(2) 
 
 # Le script maître attend que tous les sous-processus aient terminé leur travail
 for p in processus:
     p.wait()
 
-print("Toutes les extractions sont terminées !")
+print("\n--- Toutes les extractions sont terminées ! Début de la fusion ---")
+
+# 1. Lister tous les fichiers générés par l'extraction
+fichiers_csv = glob.glob("halal_*_parallele.csv")
+dataframes = []
+
+# 2. Lire chaque fichier et l'ajouter à la liste
+for fichier in fichiers_csv:
+    try:
+        df = pd.read_csv(fichier)
+        dataframes.append(df)
+        print(f"-> Chargement de {fichier} ({len(df)} lignes)")
+    except Exception as e:
+        print(f"Erreur avec le fichier {fichier} : {e}")
+
+# 3. Fusion et nettoyage
+if dataframes:
+    # On colle tous les tableaux bout à bout
+    fusion_df = pd.concat(dataframes, ignore_index=True)
+    total_brut = len(fusion_df)
+    
+    # On supprime les doublons basés sur le nom et l'adresse
+    if 'name' in fusion_df.columns and 'address' in fusion_df.columns:
+        fusion_df = fusion_df.drop_duplicates(subset=['name', 'address'])
+    else:
+        fusion_df = fusion_df.drop_duplicates()
+        
+    total_net = len(fusion_df)
+    
+    # 4. Sauvegarde du fichier maître
+    fichier_final = "restaurants_halal_base_complete.csv"
+    fusion_df.to_csv(fichier_final, index=False)
+    
+    print("\n✅ Fusion terminée avec succès !")
+    print(f"Restaurants trouvés avant nettoyage : {total_brut}")
+    print(f"Restaurants uniques après nettoyage : {total_net}")
+    print(f"Fichier final sauvegardé sous : {fichier_final}")
+    
+    # Optionnel : Dé-commente les deux lignes ci-dessous si tu veux que 
+    # le script supprime automatiquement les fichiers individuels des villes à la fin.
+    # for f in fichiers_csv:
+    #     os.remove(f)
+else:
+    print("Aucun fichier n'a été trouvé pour la fusion.")
