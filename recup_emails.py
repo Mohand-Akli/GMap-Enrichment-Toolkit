@@ -7,7 +7,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 1. Charger ton fichier de restaurants
-fichier_entree = "restaurants_halal_wallonie_bruxelles_complet.csv"
+fichier_entree = "restaurants_halal_base_complete.csv"
 print(f"Chargement de {fichier_entree}...")
 df = pd.read_csv(fichier_entree)
 
