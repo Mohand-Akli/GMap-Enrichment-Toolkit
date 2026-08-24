@@ -1,7 +1,7 @@
 import pandas as pd
 import re
 import time
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 # 1. Charger ton fichier de restaurants
 fichier_entree = "restaurants_halal_wallonie_bruxelles_complet.csv"
