@@ -65,10 +65,8 @@ def extract_place(page: Page) -> Place:
     reviews_count_raw = extract_text(page, reviews_count_xpath)
     if reviews_count_raw:
         try:
-            temp = reviews_count_raw.replace('\xa0', '').replace('(','').replace(')','').replace(',','')
+            temp = reviews_count_raw.replace('\xa0', '').replace('(','').replace(')','').replace(',','').replace('\u202f', '').replace(' ', '')
             place.reviews_count = int(temp)
-        except Exception as e:
-            logging.warning(f"Failed to parse reviews count: {e}")
    # Reviews Average (Version robuste avec fallbacks)
     try:
         # On essaie le nouveau XPath, puis un chemin plus large si ça échoue
