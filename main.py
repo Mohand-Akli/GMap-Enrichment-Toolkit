@@ -124,18 +124,38 @@ def scrape_places(search_for: str, total: int) -> List[Place]:
             page.locator("//form[contains(@jsaction,'searchboxFormSubmit')]//input[@name='q']").fill(search_for)
             page.keyboard.press("Enter")
             page.wait_for_selector('//a[contains(@href, "https://www.google.com/maps/place")]')
-            page.hover('//a[contains(@href, "https://www.google.com/maps/place")]')
+            
+            # Cibler le conteneur principal des résultats pour s'assurer que le scroll s'y applique
+            feed_xpath = '//div[@role="feed"]'
+            if page.locator(feed_xpath).count() > 0:
+                page.hover(feed_xpath)
+            else:
+                page.hover('//a[contains(@href, "https://www.google.com/maps/place")]')
+
             previously_counted = 0
+            retries = 0  # Compteur pour ne pas abandonner au premier ralentissement réseau
+            
             while True:
-                page.mouse.wheel(0, 10000)
-                page.wait_for_selector('//a[contains(@href, "https://www.google.com/maps/place")]')
+                page.mouse.wheel(0, 15000)
+                
+                # PAUSE CRUCIALE : Attendre 3 secondes que Google Maps charge les éléments
+                page.wait_for_timeout(3000)
+                
                 found = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]').count()
                 logging.info(f"Currently Found: {found}")
+                
                 if found >= total:
                     break
+                    
                 if found == previously_counted:
-                    logging.info("Arrived at all available")
-                    break
+                    retries += 1
+                    logging.info(f"Aucun nouveau résultat chargé. Essai {retries}/3...")
+                    if retries >= 3:
+                        logging.info("Arrived at all available (Fin réelle de la liste).")
+                        break
+                else:
+                    retries = 0  # On réinitialise si on a trouvé de nouveaux éléments
+                    
                 previously_counted = found
             listings = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]').all()[:total]
             listings = [listing.locator("xpath=..") for listing in listings]
