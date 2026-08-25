@@ -4,85 +4,82 @@ import re
 import time
 from googlesearch import search
 
-def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
-    print(f"\n🔍 Recherche de contacts pour : {nom_restaurant}")
-    
-    motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
-    emails_trouves = set()
-    resultats_recherche = []
+def google_top3_emails(nom_restaurant):
+    print(f"\n🔍 [GOOGLE] Recherche pour : {nom_restaurant}")
     
     requete = f"{nom_restaurant} restaurant officiel contact"
+    liens_trouves = []
     
-    # 1. Recherche Google
+    # 1. ÉTAPE : Chercher sur Google et prendre les 3 premiers résultats
     try:
-        # num_results est le bon paramètre pour la version actuelle de googlesearch-python
-        resultats_recherche = list(search(requete, num_results=nb_resultats, lang="fr", sleep_interval=2))
+        # On demande à Google les résultats, avec une pause de 3 secondes pour éviter le blocage
+        resultats_bruts = search(requete, num_results=3, lang="fr", sleep_interval=3)
+        # On s'assure de ne garder strictement que les 3 premiers
+        liens_trouves = list(resultats_bruts)[:3] 
     except Exception as e:
         print(f"❌ Erreur lors de la recherche Google : {e}")
-        return []
-
-    if not resultats_recherche:
-        print("Aucun site trouvé pour ce restaurant.")
-        return []
-
-    # 2. Visiter chaque lien trouvé
+        return
+        
+    if not liens_trouves:
+        print("⚠️ Google n'a renvoyé aucun résultat. (Votre IP est probablement bloquée par Google).")
+        return
+        
+    # 2. ÉTAPE : Visiter ces 3 liens
+    motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+    emails_finaux = set()
+    
+    # Faux navigateur pour tromper la sécurité des sites
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
     
-    # Liste des sites à ignorer pour ne pas fausser les e-mails
-    domaines_ignores = ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'deliveroo', 'ubereats', 'takeaway', 'resto.be', 'foursquare', 'pagesjaunes', 'just-eat', 'tiktok', 'youtube', 'coca-cola']
-    
-    for url in resultats_recherche:
-        print(f"  🌐 Analyse de : {url}")
-        
-        if any(domaine in url for domaine in domaines_ignores):
-            print("     -> Site ignoré (Réseau social ou annuaire).")
-            continue
+    # On ignore les annuaires qui vont polluer les résultats avec de faux e-mails
+    domaines_a_fuir = ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 'takeaway', 'foursquare']
 
-        try:
-            # Téléchargement de la page du restaurant
-            reponse = requests.get(url, headers=headers, timeout=7)
+    for url in liens_trouves:
+        print(f"  🌐 Visite de : {url}")
+        
+        if any(domaine in url.lower() for domaine in domaines_a_fuir):
+            print("     -> ⏭️ Annuaire ou réseau social ignoré.")
+            continue
             
+        try:
+            # On se connecte au site
+            reponse = requests.get(url, headers=headers, timeout=10)
             if reponse.status_code == 200:
                 soup = BeautifulSoup(reponse.text, 'html.parser')
-                texte_page = soup.text
-                
-                # Extraire les adresses e-mail
-                emails_sur_page = re.findall(motif_email, texte_page)
+                # 3. ÉTAPE : Extraire les adresses mails
+                emails_sur_page = re.findall(motif_email, soup.text)
                 
                 for email in emails_sur_page:
                     email_propre = email.lower()
-                    # Ignorer les e-mails qui sont en fait des noms d'images ou liés à des technologies web
-                    if not email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.js', '.css', 'sentry.io')):
-                        emails_trouves.add(email_propre)
+                    # On retire les faux e-mails (images)
+                    if not email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
+                        emails_finaux.add(email_propre)
             else:
-                print(f"     -> Code d'erreur {reponse.status_code}.")
-                
-        except requests.exceptions.RequestException:
-            print(f"     -> Impossible d'accéder à la page (Timeout ou sécurité).")
-
-        # Petite pause pour ne pas surcharger les serveurs
-        time.sleep(1)
-
-    # 3. Affichage du résultat final
-    if emails_trouves:
-        print(f"✅ E-mails trouvés pour {nom_restaurant} :")
-        for email in emails_trouves:
-            print(f"   - {email}")
-    else:
-        print(f"❌ Aucun e-mail pertinent trouvé pour {nom_restaurant}.")
+                print(f"     -> ❌ Accès refusé par le site (Code {reponse.status_code})")
+        except Exception:
+            print(f"     -> ❌ Impossible d'accéder au site (Timeout).")
+            
+        # Pause obligatoire pour ne pas se faire bloquer par les sites
+        time.sleep(2) 
         
-    return list(emails_trouves)
+    # Bilan final
+    if emails_finaux:
+        print(f"✅ E-mails trouvés pour {nom_restaurant} :")
+        for e in emails_finaux:
+            print(f"   - {e}")
+    else:
+        print(f"❌ Aucun e-mail trouvé sur ces 3 pages.")
 
-# --- EXEMPLE D'UTILISATION ---
+# --- LANCEMENT ---
 if __name__ == "__main__":
-    restaurants_a_chercher = [
+    liste_restaurants = [
         "La Seigneurie Verviers",
         "Chamas Tacos Liège",
         "Waffle Factory Tournai"
     ]
     
-    for resto in restaurants_a_chercher:
-        chercher_emails_restaurant(resto)
-        print("-" * 40)
+    for resto in liste_restaurants:
+        google_top3_emails(resto)
+        print("-" * 50)
