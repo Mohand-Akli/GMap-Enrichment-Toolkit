@@ -22,11 +22,10 @@ def scraper_emails_selenium_csv(nom_fichier):
         print("❌ La colonne 'Restaurant_name' est introuvable dans le CSV.")
         return
 
-    # Utiliser la colonne 'mail' (déjà existante dans ton fichier) pour stocker les découvertes
+    # Utiliser la colonne 'mail' pour stocker les résultats
     if 'mail' not in df.columns:
         df['mail'] = ""
         
-    # [CORRECTION PANDAS] : Forcer le type de la colonne pour éviter le FutureWarning
     df['mail'] = df['mail'].astype(object)
 
     # 2. Configuration de Chrome (Selenium)
@@ -40,14 +39,28 @@ def scraper_emails_selenium_csv(nom_fichier):
     
     motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
     
-    # [AJOUT] : Listes noires étendues pour filtrer les faux emails
+    # LISTE NOIRE DES DOMAINES (Annuaires, réseaux sociaux, plateformes, portails publics)
     domaines_a_fuir = [
-        'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
+        'facebook.com', 'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
         'takeaway', 'foursquare', 'pagesjaunes', 'tiktok', 'haliago', 'restoconnection', 
         'pagesdor', 'infobel', 'restaurantguru', 'data.gouv', 'just-eat', 'societe.com',
-        'annuaire', 'waterlooplaza'
+        'annuaire', 'waterlooplaza', 'lefigaro.fr', 'mappy.com', 'kompass.com', 
+        'mon-resto-halal.com', 'thefork', 'eatbu.com', 'privateaser.com', 'marseille-tourisme',
+        'latranchesurmer-tourisme', 'infiniment-charentes', 'zoekkinderopvang', 'helan.be',
+        'service-public.gouv.fr', 'vdl.lu', 'sudinfo.be', 'companyweb.be', 'matablehalal',
+        'visit.brussels', 'cotedazurfrance', 'visitvar', 'trouvetonresto', 'resto.be'
     ]
-    prefixes_a_fuir = ['app@', 'redaction@', 'webmaster@', 'support@', 'privacy@', 'abuse@', 'noreply@', 'be@']
+    
+    # LISTE NOIRE DES PRÉFIXES (Comptes génériques/techniques)
+    prefixes_a_fuir = [
+        'app@', 'redaction@', 'webmaster@', 'support@', 'privacy@', 
+        'abuse@', 'noreply@', 'be@', 'admcommunale@', 'contactpunt'
+    ]
+    
+    # FAUX EMAILS EXACTS À IGNORER (Templates et placeholders)
+    emails_invalides_exacts = {
+        'name@example.com', 'nc@nc.fr', 'example@example.com', 'email@example.com', 'test@test.com'
+    }
 
     # 3. Boucle sur chaque restaurant du fichier
     for index, row in df.iterrows():
@@ -62,7 +75,6 @@ def scraper_emails_selenium_csv(nom_fichier):
         requete = f"{nom_restaurant} restaurant officiel contact"
         driver.get(f"https://www.google.com/search?q={requete}")
         
-        # Pause : laissez le temps de charger (ou de cliquer sur "Accepter" les cookies la 1ère fois)
         time.sleep(3) 
 
         liens_trouves = []
@@ -72,10 +84,10 @@ def scraper_emails_selenium_csv(nom_fichier):
                 href = element.get_attribute("href")
                 if href and href.startswith("http") and "google.com" not in href:
                     if "translate.goog" not in href and "webcache" not in href:
+                        # On ignore le lien si son URL contient un domaine banni
                         if not any(domaine in href.lower() for domaine in domaines_a_fuir):
                             if href not in liens_trouves:
                                 liens_trouves.append(href)
-                            # On s'arrête aux 3 PREMIERS LIENS
                             if len(liens_trouves) >= 3:
                                 break
         except Exception:
@@ -90,18 +102,23 @@ def scraper_emails_selenium_csv(nom_fichier):
             print(f"  🌐 Visite de : {url}")
             try:
                 driver.get(url)
-                time.sleep(3) # On laisse le site charger
+                time.sleep(3)
                 texte_page = driver.find_element(By.TAG_NAME, "body").text
                 emails_sur_page = re.findall(motif_email, texte_page)
                 
                 for email in emails_sur_page:
-                    email_propre = email.lower()
+                    email_propre = email.lower().rstrip('.')
                     
-                    # [AJOUT] : Logique de filtrage améliorée
+                    # 1. Ignorer les formats de fichiers d'images
                     if email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
                         continue
+                    # 2. Ignorer les adresses modèles / bidons
+                    if email_propre in emails_invalides_exacts:
+                        continue
+                    # 3. Ignorer les préfixes techniques
                     if any(email_propre.startswith(prefix) for prefix in prefixes_a_fuir):
                         continue
+                    # 4. Ignorer les emails rattachés à des domaines tiers ou annuaires
                     if any(domaine in email_propre for domaine in domaines_a_fuir):
                         continue
                         
@@ -116,18 +133,16 @@ def scraper_emails_selenium_csv(nom_fichier):
             df.at[index, 'mail'] = emails_str
             print(f"   ✅ E-mail(s) trouvé(s) : {emails_str}")
         else:
-            print(f"   ❌ Aucun e-mail trouvé sur ces 3 pages.")
+            print(f"   ❌ Aucun e-mail valide trouvé sur ces pages.")
 
         # 5. Sauvegarde immédiate dans le CSV
         df.to_csv(nom_fichier, index=False, encoding='utf-8')
         print("   💾 Fichier mis à jour avec succès.")
         
-    # Fin de la boucle
     driver.quit()
     print("\n🎉 Fin du scraping ! Toutes les données sont enregistrées dans votre fichier CSV.")
 
 # --- LANCEMENT ---
 if __name__ == "__main__":
-    # Nom du fichier (doit être dans le même dossier que le script Python)
     nom_du_fichier = "mon-resto-halal-com-complete-list - Copie de Numéro de téléphone et email.csv"
     scraper_emails_selenium_csv(nom_du_fichier)
