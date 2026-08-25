@@ -16,7 +16,7 @@ def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
     
     try:
         # Récupère les X premiers résultats de recherche
-        resultats_recherche = list(search(requete, num=nb_resultats, stop=nb_resultats, pause=2.0))
+        resultats_recherche = list(search(requete, num_results=nb_resultats, sleep_interval=2.0))
     except Exception as e:
         print(f"❌ Erreur lors de la recherche Google : {e}")
         return []
