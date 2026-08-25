@@ -1,49 +1,71 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-from duckduckgo_search import DDGS
+import urllib.parse
 import time
 
 def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
     print(f"\n🔍 Recherche de contacts pour : {nom_restaurant}")
     
-    # Expression régulière pour l'e-mail
     motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
     emails_trouves = set()
-    
-    requete = f"{nom_restaurant} restaurant officiel contact"
     resultats_recherche = []
     
-    # 1. Recherche via DuckDuckGo
+    # 1. Recherche directe sur la version HTML de DuckDuckGo
+    requete = f"{nom_restaurant} restaurant officiel contact"
+    url_recherche = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(requete)}"
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+    }
+    
     try:
-        with DDGS() as ddgs:
-            # Récupère les résultats sous forme de dictionnaire et extrait les liens (href)
-            resultats = list(ddgs.text(requete, max_results=nb_resultats))
-            resultats_recherche = [res['href'] for res in resultats]
+        # On envoie la requête de recherche
+        reponse = requests.get(url_recherche, headers=headers, timeout=10)
+        
+        if reponse.status_code == 200:
+            soup = BeautifulSoup(reponse.text, 'html.parser')
+            
+            # Extraction des liens des résultats de recherche
+            for a in soup.find_all('a', class_='result__url'):
+                href = a.get('href')
+                if href:
+                    # DuckDuckGo obfusque parfois les liens avec "uddg="
+                    if 'uddg=' in href:
+                        url_reelle = urllib.parse.unquote(href.split('uddg=')[1].split('&')[0])
+                    else:
+                        url_reelle = href
+                        
+                    # On ne garde pas les liens internes à DuckDuckGo
+                    if url_reelle.startswith('http'):
+                        resultats_recherche.append(url_reelle)
+                        
+                if len(resultats_recherche) >= nb_resultats:
+                    break
+        else:
+            print(f"❌ Erreur d'accès à DuckDuckGo (Code: {reponse.status_code})")
+            return []
+            
     except Exception as e:
-        print(f"❌ Erreur lors de la recherche DuckDuckGo : {e}")
+        print(f"❌ Erreur lors de la recherche : {e}")
         return []
 
     if not resultats_recherche:
         print("Aucun site trouvé pour ce restaurant.")
         return []
 
-    # 2. Visiter chaque lien
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-
+    # 2. Visiter chaque lien trouvé
     for url in resultats_recherche:
         print(f"  🌐 Analyse de : {url}")
         
         # Ignorer les annuaires ou réseaux sociaux
-        domaines_ignores = ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'deliveroo', 'ubereats', 'takeaway', 'resto.be', 'foursquare']
+        domaines_ignores = ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'deliveroo', 'ubereats', 'takeaway', 'resto.be', 'foursquare', 'pagesjaunes', 'just-eat']
         if any(domaine in url for domaine in domaines_ignores):
             print("     -> Site ignoré (Réseau social ou annuaire).")
             continue
 
         try:
-            # Téléchargement de la page
+            # Téléchargement de la page du restaurant
             reponse = requests.get(url, headers=headers, timeout=5)
             
             if reponse.status_code == 200:
@@ -54,17 +76,18 @@ def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
                 emails_sur_page = re.findall(motif_email, texte_page)
                 
                 for email in emails_sur_page:
-                    if not email.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                    if not email.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
                         emails_trouves.add(email.lower())
             else:
-                print(f"     -> Code d'erreur {reponse.status_code} lors de l'accès au site.")
+                print(f"     -> Code d'erreur {reponse.status_code}.")
                 
         except requests.exceptions.RequestException:
             print(f"     -> Impossible d'accéder à la page (Timeout ou sécurité).")
 
+        # Petite pause pour respecter les serveurs
         time.sleep(1)
 
-    # 3. Résultat final
+    # 3. Affichage du résultat final
     if emails_trouves:
         print(f"✅ E-mails trouvés pour {nom_restaurant} :")
         for email in emails_trouves:
