@@ -17,14 +17,14 @@ def scraper_emails_selenium_csv(nom_fichier):
         print(f"❌ Le fichier '{nom_fichier}' est introuvable. Vérifiez qu'il est dans le même dossier.")
         return
 
-    # Vérifier que la colonne 'name' existe bien
-    if 'name' not in df.columns:
-        print("❌ La colonne 'name' est introuvable dans le CSV.")
+    # Vérifier que la colonne 'Restaurant_name' existe bien
+    if 'Restaurant_name' not in df.columns:
+        print("❌ La colonne 'Restaurant_name' est introuvable dans le CSV.")
         return
 
-    # Créer une colonne pour stocker nos découvertes
-    if 'email_scrappe' not in df.columns:
-        df['email_scrappe'] = ""
+    # Utiliser la colonne 'mail' (déjà existante dans ton fichier) pour stocker les découvertes
+    if 'mail' not in df.columns:
+        df['mail'] = ""
 
     # 2. Configuration de Chrome (Selenium)
     print("🚀 Lancement de Chrome...")
@@ -40,10 +40,10 @@ def scraper_emails_selenium_csv(nom_fichier):
 
     # 3. Boucle sur chaque restaurant du fichier
     for index, row in df.iterrows():
-        nom_restaurant = row['name']
+        nom_restaurant = row['Restaurant_name']
         
         # Sécurité : Si un e-mail a déjà été scrappé, on passe au suivant
-        if pd.notna(row.get('email_scrappe')) and str(row.get('email_scrappe')).strip() != "":
+        if pd.notna(row.get('mail')) and str(row.get('mail')).strip() != "":
             print(f"\n⏭️ [IGNORÉ] {nom_restaurant} a déjà un e-mail enregistré.")
             continue
 
@@ -93,7 +93,7 @@ def scraper_emails_selenium_csv(nom_fichier):
         # 4. Enregistrement des résultats
         if emails_finaux:
             emails_str = ", ".join(emails_finaux)
-            df.at[index, 'email_scrappe'] = emails_str
+            df.at[index, 'mail'] = emails_str
             print(f"   ✅ E-mail(s) trouvé(s) : {emails_str}")
         else:
             print(f"   ❌ Aucun e-mail trouvé sur ces 3 pages.")
@@ -109,5 +109,5 @@ def scraper_emails_selenium_csv(nom_fichier):
 # --- LANCEMENT ---
 if __name__ == "__main__":
     # Nom du fichier (doit être dans le même dossier que le script Python)
-    nom_du_fichier = "repertoire_restaurants_halal_wallonie.csv"
+    nom_du_fichier = "mon-resto-halal-com-complete-list - Copie de Numéro de téléphone et email.csv"
     scraper_emails_selenium_csv(nom_du_fichier)
