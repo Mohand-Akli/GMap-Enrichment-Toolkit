@@ -25,6 +25,9 @@ def scraper_emails_selenium_csv(nom_fichier):
     # Utiliser la colonne 'mail' (déjà existante dans ton fichier) pour stocker les découvertes
     if 'mail' not in df.columns:
         df['mail'] = ""
+        
+    # [CORRECTION PANDAS] : Forcer le type de la colonne pour éviter le FutureWarning
+    df['mail'] = df['mail'].astype(object)
 
     # 2. Configuration de Chrome (Selenium)
     print("🚀 Lancement de Chrome...")
@@ -36,7 +39,15 @@ def scraper_emails_selenium_csv(nom_fichier):
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
-    domaines_a_fuir = ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 'takeaway', 'foursquare', 'pagesjaunes', 'tiktok']
+    
+    # [AJOUT] : Listes noires étendues pour filtrer les faux emails
+    domaines_a_fuir = [
+        'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
+        'takeaway', 'foursquare', 'pagesjaunes', 'tiktok', 'haliago', 'restoconnection', 
+        'pagesdor', 'infobel', 'restaurantguru', 'data.gouv', 'just-eat', 'societe.com',
+        'annuaire', 'waterlooplaza'
+    ]
+    prefixes_a_fuir = ['app@', 'redaction@', 'webmaster@', 'support@', 'privacy@', 'abuse@', 'noreply@', 'be@']
 
     # 3. Boucle sur chaque restaurant du fichier
     for index, row in df.iterrows():
@@ -85,8 +96,17 @@ def scraper_emails_selenium_csv(nom_fichier):
                 
                 for email in emails_sur_page:
                     email_propre = email.lower()
-                    if not email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
-                        emails_finaux.add(email_propre)
+                    
+                    # [AJOUT] : Logique de filtrage améliorée
+                    if email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
+                        continue
+                    if any(email_propre.startswith(prefix) for prefix in prefixes_a_fuir):
+                        continue
+                    if any(domaine in email_propre for domaine in domaines_a_fuir):
+                        continue
+                        
+                    emails_finaux.add(email_propre)
+                    
             except Exception:
                 print(f"     -> ❌ Impossible de charger ce site.")
 
