@@ -8,7 +8,7 @@ import urllib.parse
 import time
 
 # 1. Charger le fichier CSV (Assure-toi du bon nom ou du bon chemin !)
-nom_fichier = "mon-resto-halal-com-complete-list - Copie de Numéro de téléphone et email" 
+nom_fichier = "mon-resto-halal-com-complete-list - Copie de Numéro de téléphone et email.csv" 
 df = pd.read_csv(nom_fichier)
 
 # 2. Configurer Selenium
