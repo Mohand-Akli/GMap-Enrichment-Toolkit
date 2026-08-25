@@ -1,71 +1,88 @@
-import pandas as pd
-import re
 import requests
-import urllib3
+from bs4 import BeautifulSoup
+import re
+from googlesearch import search
+import time
 
-# Désactiver les avertissements de sécurité SSL pour les sites un peu anciens
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# 1. Charger ton fichier de restaurants
-fichier_entree = "restaurants_halal_base_complete.csv"
-print(f"Chargement de {fichier_entree}...")
-df = pd.read_csv(fichier_entree)
-
-# Créer une colonne email si elle n'existe pas
-if 'email' not in df.columns:
-    df['email'] = ""
-
-def trouver_email_sur_site(url):
-    if pd.isna(url) or not isinstance(url, str) or len(url.strip()) == 0:
-        return "Pas de site web"
+def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
+    print(f"\n🔍 Recherche de contacts pour : {nom_restaurant}")
     
-    # S'assurer que l'URL commence bien par https://
-    if not url.startswith('http'):
-        url = 'https://' + url
-        
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
+    # Expression régulière pour détecter une adresse e-mail
+    motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+    emails_trouves = set() # Utilisation d'un 'set' pour éviter les doublons
+    
+    # 1. Rechercher le restaurant sur Google pour obtenir les premiers liens
+    requete = f"{nom_restaurant} restaurant contact officiel"
     
     try:
-        # On télécharge la page d'accueil (timeout court de 4 secondes pour aller vite)
-        response = requests.get(url, headers=headers, timeout=4, verify=False)
-        if response.status_code == 200:
-            # Recherche de tous les motifs d'e-mails dans le code source de la page
-            emails = set(re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', response.text))
-            
-            # Filtrer les faux positifs (images, scripts, domaines techniques)
-            exclus = ['.png', '.jpg', '.gif', '.svg', 'sentry', 'wix', 'example', 'domain', 'wordpress', 'elementor', 'your-email']
-            emails_propres = [e for e in emails if not any(x in e.lower() for x in exclus)]
-            
-            if emails_propres:
-                return ", ".join(emails_propres)
-    except Exception:
-        pass
+        # Récupère les X premiers résultats de recherche
+        resultats_recherche = list(search(requete, num=nb_resultats, stop=nb_resultats, pause=2.0))
+    except Exception as e:
+        print(f"❌ Erreur lors de la recherche Google : {e}")
+        return []
+
+    if not resultats_recherche:
+        print("Aucun site trouvé pour ce restaurant.")
+        return []
+
+    # 2. Visiter chaque lien pour y extraire les e-mails
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    for url in resultats_recherche:
+        print(f"  🌐 Analyse de : {url}")
         
-    return "Non trouvé"
+        # Ignorer les annuaires ou réseaux sociaux qui faussent souvent les résultats
+        if any(domaine in url for domaine in ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'deliveroo', 'ubereats', 'takeaway']):
+            print("     -> Site ignoré (Réseau social ou annuaire).")
+            continue
 
-print("Début de l'analyse des sites web...")
-total_trouves = 0
+        try:
+            # Télécharger la page web avec un délai d'attente maximum de 5 secondes
+            reponse = requests.get(url, headers=headers, timeout=5)
+            
+            # Si la page s'est bien chargée
+            if reponse.status_code == 200:
+                soup = BeautifulSoup(reponse.text, 'html.parser')
+                texte_page = soup.text
+                
+                # Chercher les e-mails dans le texte de la page
+                emails_sur_page = re.findall(motif_email, texte_page)
+                
+                for email in emails_sur_page:
+                    # Petit filtre pour ignorer les faux e-mails liés aux images ou au code (ex: exemple@2x.png)
+                    if not email.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                        emails_trouves.add(email.lower())
+            else:
+                print(f"     -> Code d'erreur {reponse.status_code} lors de l'accès au site.")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"     -> Impossible d'accéder à la page (Timeout ou sécurité).")
 
-for idx, row in df.iterrows():
-    site = row.get('website')
-    nom = row.get('name')
-    
-    if pd.notna(site) and str(site).strip() != "":
-        email = trouver_email_sur_site(site)
-        if email != "Non trouvé" and email != "Pas de site web":
-            total_trouves += 1
-            print(f"[TROUVÉ] {nom} ({site}) -> {email}")
-            df.at[idx, 'email'] = email
-        else:
-            df.at[idx, 'email'] = email
+        # Petite pause pour ne pas surcharger les serveurs
+        time.sleep(1)
+
+    # 3. Afficher le résultat final
+    if emails_trouves:
+        print(f"✅ E-mails trouvés pour {nom_restaurant} :")
+        for email in emails_trouves:
+            print(f"   - {email}")
     else:
-        df.at[idx, 'email'] = "Pas de site web"
+        print(f"❌ Aucun e-mail pertinent trouvé pour {nom_restaurant}.")
+        
+    return list(emails_trouves)
 
-# 2. Sauvegarder le fichier enrichi
-fichier_sortie = "restaurants_halal_avec_emails.csv"
-df.to_csv(fichier_sortie, index=False)
-print(f"\n--- Terminé ! ---")
-print(f"E-mails trouvés sur les sites web : {total_trouves}")
-print(f"Résultats sauvegardés dans : {fichier_sortie}")
+
+# --- EXEMPLE D'UTILISATION ---
+if __name__ == "__main__":
+    # Vous pouvez remplacer cette liste par les noms de votre fichier CSV
+    restaurants_a_chercher = [
+        "La Seigneurie Verviers",
+        "Chamas Tacos Liège",
+        "Waffle Factory Tournai"
+    ]
+    
+    for resto in restaurants_a_chercher:
+        chercher_emails_restaurant(resto)
+        print("-" * 40)
