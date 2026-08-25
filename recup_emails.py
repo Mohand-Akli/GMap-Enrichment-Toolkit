@@ -41,14 +41,14 @@ def scraper_emails_selenium_csv(nom_fichier):
     
     # LISTE NOIRE DES DOMAINES (Annuaires, réseaux sociaux, plateformes, portails publics)
     domaines_a_fuir = [
-        'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
+        'facebook.com', 'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
         'takeaway', 'foursquare', 'pagesjaunes', 'tiktok', 'haliago', 'restoconnection', 
         'pagesdor', 'infobel', 'restaurantguru', 'data.gouv', 'just-eat', 'societe.com',
         'annuaire', 'waterlooplaza', 'lefigaro.fr', 'mappy.com', 'kompass.com', 
-        'mon-resto-halal.com',  'eatbu.com', 'privateaser.com', 'marseille-tourisme',
+        'mon-resto-halal.com', 'thefork', 'eatbu.com', 'privateaser.com', 'marseille-tourisme',
         'latranchesurmer-tourisme', 'infiniment-charentes', 'zoekkinderopvang', 'helan.be',
-        'service-public.gouv.fr', 'vdl.lu', 'sudinfo.be', 'companyweb.be',
-        'visit.brussels', 'cotedazurfrance', 'visitvar', 'trouvetonresto',
+        'service-public.gouv.fr', 'vdl.lu', 'sudinfo.be', 'companyweb.be', 'matablehalal',
+        'visit.brussels', 'cotedazurfrance', 'visitvar', 'trouvetonresto', 'resto.be'
     ]
     
     # LISTE NOIRE DES PRÉFIXES (Comptes génériques/techniques)
@@ -144,5 +144,6 @@ def scraper_emails_selenium_csv(nom_fichier):
 
 # --- LANCEMENT ---
 if __name__ == "__main__":
-    nom_du_fichier = "mon-resto-halal-com-complete-list - Copie de Numéro de téléphone et email.csv"
+    # Nom du fichier mis à jour selon votre demande
+    nom_du_fichier = "mon-resto-halal-com-complete-list - Numéro de téléphone et email (1).csv"
     scraper_emails_selenium_csv(nom_du_fichier)
