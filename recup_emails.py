@@ -1,8 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-import urllib.parse
 import time
+from googlesearch import search
 
 def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
     print(f"\n🔍 Recherche de contacts pour : {nom_restaurant}")
@@ -11,51 +11,14 @@ def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
     emails_trouves = set()
     resultats_recherche = []
     
-    # 1. Recherche via Yahoo (beaucoup plus tolérant pour les scripts)
     requete = f"{nom_restaurant} restaurant officiel contact"
-    url_recherche = f"https://fr.search.yahoo.com/search?p={urllib.parse.quote(requete)}"
     
-    # On simule un navigateur très standard
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-    
+    # 1. Recherche Google
     try:
-        reponse = requests.get(url_recherche, headers=headers, timeout=10)
-        
-        if reponse.status_code == 200:
-            soup = BeautifulSoup(reponse.text, 'html.parser')
-            
-            # Extraire les liens de la page Yahoo
-            for a in soup.find_all('a', href=True):
-                href = a['href']
-                
-                # Filtrer les liens internes de Yahoo et les pubs
-                if href.startswith('http') and 'yahoo.com' not in href and 'yahoo.net' not in href:
-                    
-                    # Yahoo cache souvent le vrai lien derrière le paramètre 'RU='
-                    if 'RU=' in href:
-                        try:
-                            # On découpe l'URL pour récupérer la vraie adresse
-                            url_reelle = urllib.parse.unquote(href.split('RU=')[1].split('/RK=')[0])
-                        except:
-                            url_reelle = href
-                    else:
-                        url_reelle = href
-                        
-                    # Ajouter à la liste sans créer de doublons
-                    if url_reelle not in resultats_recherche:
-                        resultats_recherche.append(url_reelle)
-                        
-                # On s'arrête quand on a le nombre de résultats souhaité
-                if len(resultats_recherche) >= nb_resultats:
-                    break
-        else:
-            print(f"❌ Erreur d'accès à Yahoo (Code: {reponse.status_code})")
-            return []
-            
+        # num_results est le bon paramètre pour la version actuelle de googlesearch-python
+        resultats_recherche = list(search(requete, num_results=nb_resultats, lang="fr", sleep_interval=2))
     except Exception as e:
-        print(f"❌ Erreur lors de la recherche : {e}")
+        print(f"❌ Erreur lors de la recherche Google : {e}")
         return []
 
     if not resultats_recherche:
@@ -63,7 +26,12 @@ def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
         return []
 
     # 2. Visiter chaque lien trouvé
-    domaines_ignores = ['facebook.com', 'tripadvisor.com', 'tripadvisor.be', 'yelp', 'instagram.com', 'deliveroo.be', 'ubereats.com', 'takeaway.com', 'resto.be', 'foursquare.com', 'pagesjaunes', 'just-eat', 'tiktok.com', 'youtube.com']
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    
+    # Liste des sites à ignorer pour ne pas fausser les e-mails
+    domaines_ignores = ['facebook.com', 'tripadvisor', 'yelp', 'instagram', 'deliveroo', 'ubereats', 'takeaway', 'resto.be', 'foursquare', 'pagesjaunes', 'just-eat', 'tiktok', 'youtube', 'coca-cola']
     
     for url in resultats_recherche:
         print(f"  🌐 Analyse de : {url}")
@@ -80,13 +48,14 @@ def chercher_emails_restaurant(nom_restaurant, nb_resultats=3):
                 soup = BeautifulSoup(reponse.text, 'html.parser')
                 texte_page = soup.text
                 
-                # Extraire les adresses e-mail de la page
+                # Extraire les adresses e-mail
                 emails_sur_page = re.findall(motif_email, texte_page)
                 
                 for email in emails_sur_page:
-                    # On ignore les faux e-mails liés à des images
-                    if not email.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
-                        emails_trouves.add(email.lower())
+                    email_propre = email.lower()
+                    # Ignorer les e-mails qui sont en fait des noms d'images ou liés à des technologies web
+                    if not email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.js', '.css', 'sentry.io')):
+                        emails_trouves.add(email_propre)
             else:
                 print(f"     -> Code d'erreur {reponse.status_code}.")
                 
