@@ -9,7 +9,7 @@ import time
 
 # 1. Charger le fichier CSV
 # (Assure-toi que ce nom correspond exactement au fichier dans ton dossier)
-nom_fichier = "donnees.csv" 
+nom_fichier = "mon-resto-halal-com-complete-list - Numéro de téléphone et email.csv" 
 df = pd.read_csv(nom_fichier)
 
 # Créer la colonne "site web" si elle n'existe pas déjà
