@@ -64,8 +64,8 @@ def scraper_emails_selenium_csv(nom_fichier):
                         if not any(domaine in href.lower() for domaine in domaines_a_fuir):
                             if href not in liens_trouves:
                                 liens_trouves.append(href)
-                            # On s'arrête aux 2 PREMIERS LIENS
-                            if len(liens_trouves) >= 2:
+                            # On s'arrête aux 3 PREMIERS LIENS
+                            if len(liens_trouves) >= 3:
                                 break
         except Exception:
             print("   ❌ Erreur lors de la lecture des résultats Google.")
@@ -96,7 +96,7 @@ def scraper_emails_selenium_csv(nom_fichier):
             df.at[index, 'email_scrappe'] = emails_str
             print(f"   ✅ E-mail(s) trouvé(s) : {emails_str}")
         else:
-            print(f"   ❌ Aucun e-mail trouvé sur ces 2 pages.")
+            print(f"   ❌ Aucun e-mail trouvé sur ces 3 pages.")
 
         # 5. Sauvegarde immédiate dans le CSV
         df.to_csv(nom_fichier, index=False, encoding='utf-8')
