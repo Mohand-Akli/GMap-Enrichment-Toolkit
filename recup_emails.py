@@ -18,7 +18,7 @@ def scraper_emails_selenium_csv(nom_fichier):
         return
 
     # Vérifier que la colonne 'Restaurant_name' existe bien
-    if 'Restaurant_name' not in df.columns:
+    if 'name' not in df.columns:
         print("❌ La colonne 'Restaurant_name' est introuvable dans le CSV.")
         return
 
@@ -64,7 +64,7 @@ def scraper_emails_selenium_csv(nom_fichier):
 
     # 3. Boucle sur chaque restaurant du fichier
     for index, row in df.iterrows():
-        nom_restaurant = row['Restaurant_name']
+        nom_restaurant = row['name']
         
         # Sécurité : Si un e-mail a déjà été scrappé, on passe au suivant
         if pd.notna(row.get('mail')) and str(row.get('mail')).strip() != "":
@@ -145,5 +145,5 @@ def scraper_emails_selenium_csv(nom_fichier):
 # --- LANCEMENT ---
 if __name__ == "__main__":
     # Nom du fichier mis à jour selon votre demande
-    nom_du_fichier = "guide-michelin-com-2026-07-12 (1) - Copie de Sheet1 (1).csv"
+    nom_du_fichier = "data.csv"
     scraper_emails_selenium_csv(nom_du_fichier)
