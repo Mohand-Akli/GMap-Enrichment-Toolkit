@@ -145,5 +145,5 @@ def scraper_emails_selenium_csv(nom_fichier):
 # --- LANCEMENT ---
 if __name__ == "__main__":
     # Nom du fichier mis à jour selon votre demande
-    nom_du_fichier = "data.csv"
+    nom_du_fichier = "guide-michelin-com-2026-07-12 (1) - Copie de Sheet1 (1).csv"
     scraper_emails_selenium_csv(nom_du_fichier)
