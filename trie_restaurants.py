@@ -4,9 +4,6 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Nom des fichiers
@@ -23,11 +20,27 @@ else:
 
 # Configuration de Selenium Chrome
 chrome_options = Options()
+# Options pour éviter d'être détecté comme bot et stabiliser la session
+chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+chrome_options.add_experimental_option('useAutomationExtension', False)
+
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
-# Variable pour savoir si on a déjà géré les cookies (pour ne pas le faire à chaque itération)
-cookies_accepted = False
+# ASTUCE : Pour contourner le mur de cookies Google, on va d'abord sur google.com 
+# et on injecte le cookie de consentement "YES"
+driver.get("https://www.google.com")
+try:
+    driver.add_cookie({
+        'name': 'CONSENT',
+        'value': 'YES+cb.20210328-17-p.en+FX+123',
+        'domain': '.google.com',
+        'path': '/'
+    })
+    print("Cookie de consentement injecté avec succès.")
+except Exception as e:
+    print(f"Remarque lors de l'injection du cookie : {e}")
 
 print("\n--- Démarrage du tri interactif ---")
 print("Commandes dans la console :")
@@ -48,20 +61,6 @@ try:
         # Ouvrir Google Maps avec la recherche du restaurant
         search_url = f"https://www.google.com/maps/search/{query.replace(' ', '+')}"
         driver.get(search_url)
-        
-        # Gérer la bannière de cookies Google au premier lancement
-        if not cookies_accepted:
-            try:
-                # Attendre au max 3 secondes que le bouton "Tout accepter" apparaisse et cliquer dessus
-                accept_button = WebDriverWait(driver, 3).until(
-                    EC.element_to_be_clickable((By.ID, "L2AGLb"))
-                )
-                accept_button.click()
-                cookies_accepted = True
-                time.sleep(1) # Petite pause pour laisser la page charger après acceptation
-            except Exception:
-                # Si le bouton n'apparaît pas, c'est qu'il n'y a pas de bannière de cookies
-                cookies_accepted = True
         
         # Demander l'action à l'utilisateur dans la console
         choix = input("Voulez-vous garder ce restaurant ? ([g]arder / [s]upprimer / [q]uitter) : ").strip().lower()
