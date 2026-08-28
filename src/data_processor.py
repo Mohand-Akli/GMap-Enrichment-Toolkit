@@ -1,54 +1,92 @@
 import os
 import glob
-import time
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 def selectionner_fichier():
-    # Liste tous les fichiers CSV dans le dossier data/ (nouvelle structure) et à la racine
+    """Menu interactif pour choisir le fichier CSV à traiter."""
     fichiers = glob.glob("data/*.csv") + glob.glob("*.csv")
-    fichiers = list(set(fichiers)) # Supprime les éventuels doublons
+    fichiers = list(set(fichiers))
     
     if not fichiers:
-        print("Aucun fichier .csv trouvé dans le projet.")
+        print("❌ Aucun fichier .csv trouvé dans le projet.")
         exit()
         
-    print("\n--- Fichiers CSV disponibles ---")
+    print("\n--- Fichiers CSV disponibles pour le tri ---")
     for i, fichier in enumerate(fichiers):
         print(f"[{i + 1}] {fichier}")
         
     while True:
-        choix = input("\nEntrez le numéro du fichier à traiter : ")
+        choix = input("\nEntrez le numéro du fichier à trier : ")
         if choix.isdigit() and 1 <= int(choix) <= len(fichiers):
             fichier_choisi = fichiers[int(choix) - 1]
             break
-        print("Choix invalide. Entrez un numéro correspondant à la liste.")
+        print("⚠️ Choix invalide. Entrez un numéro valide.")
         
-    # Génère automatiquement le nom du fichier de sortie
     base_name, ext = os.path.splitext(fichier_choisi)
-    
-    # Si l'utilisateur sélectionne un fichier qui a déjà "_trie" dans le nom
-    if base_name.endswith("_trie"):
-        fichier_sortie = fichier_choisi
-    else:
-        fichier_sortie = f"{base_name}_trie{ext}"
-        
+    fichier_sortie = f"{base_name}_trie_manuel{ext}"
     return fichier_choisi, fichier_sortie
 
-# Assignation dynamique des noms de fichiers
-input_csv, output_csv = selectionner_fichier()
+def nettoyer_interactivement():
+    entree, sortie = selectionner_fichier()
+    
+    print(f"\n📂 Chargement de {entree}...")
+    try:
+        df = pd.read_csv(entree)
+    except Exception as e:
+        print(f"❌ Erreur lors de la lecture du fichier : {e}")
+        return
 
-# Charger le fichier CSV (reprise automatique si le fichier trié existe déjà)
-if os.path.exists(output_csv):
-    df = pd.read_csv(output_csv)
-    print(f"\nReprise du fichier trié existant ({len(df)} restaurants restants).")
-else:
-    df = pd.read_csv(input_csv)
-    print(f"\nChargement initial de {len(df)} restaurants depuis {input_csv}.")
+    # Si un fichier trié existe déjà, on propose de reprendre
+    if os.path.exists(sortie):
+        reprendre = input(Un fichier de sauvegarde trié existe déjà ({sortie}). Veux-tu reprendre le tri ? (o/n) : ).strip().lower()
+        if reprendre == 'o':
+            df_sortie = pd.read_csv(sortie)
+            print(f"✅ Reprise du tri (déjà {len(df_sortie)} lignes traitées).")
+        else:
+            df_sortie = pd.DataFrame(columns=df.columns)
+    else:
+        df_sortie = pd.DataFrame(columns=df.columns)
 
-# Configuration de Selenium Chrome
-chrome_options = Options()
-# ... [Le reste de ton code original à partir d'ici] ...
+    print("\n" + "="*50)
+    print(" 🛠️ MODE DE TRI INTERACTIF LIGNE PAR LIGNE")
+    print(" Commandes : [g]arder | [s]upprimer | [q]uitter et sauvegarder")
+    print("="*50 + "\n")
+
+    for index, row in df.iterrows():
+        # Vérifier si la ligne a déjà été traitée (si on reprend un fichier)
+        nom = row.get('name', row.get('Restaurant_name', 'Inconnu'))
+        adresse = row.get('address', row.get('adress', 'Adresse inconnue'))
+        
+        # Affichage propre des infos du restaurant
+        print(f"\n--- Ligne {index + 1} / {len(df)} ---")
+        print(f"🍽️ Nom     : {nom}")
+        print(f"📍 Adresse : {adresse}")
+        if 'phone_number' in row and pd.notna(row['phone_number']):
+            print(f"📞 Tél     : {row['phone_number']}")
+        if 'website' in row and pd.notna(row['website']):
+            print(f"🌐 Site    : {row['website']}")
+            
+        choix = input("\n👉 Garder ce restaurant ? (g = garder / s = supprimer / q = quitter) : ").strip().lower()
+        
+        if choix == 'g':
+            # Ajouter la ligne au DataFrame de sortie
+            df_sortie = pd.concat([df_sortie, pd.DataFrame([row])], ignore_index=True)
+            print("  ✅ [Conservé]")
+        elif choix == 's':
+            print("  ❌ [Supprimé]")
+        elif choix == 'q':
+            print("\n💾 Sauvegarde intermédiaire et fermeture...")
+            break
+        else:
+            # Par défaut si l'utilisateur appuie juste sur Entrée ou met autre chose, on garde
+            df_sortie = pd.concat([df_sortie, pd.DataFrame([row])], ignore_index=True)
+            print("  ✅ [Conservé par défaut]")
+            
+        # Sauvegarde automatique à chaque étape pour ne rien perdre
+        df_sortie.to_csv(sortie, index=False, encoding='utf-8')
+
+    print(f"\n🎉 Tri terminé ! Fichier propre enregistré sous : {sortie}")
+    print(f"📊 Total de restaurants gardés : {len(df_sortie)} sur {len(df)} examinés.")
+
+if __name__ == "__main__":
+    nettoyer_interactivement()
