@@ -38,7 +38,7 @@ def nettoyer_interactivement():
 
     # Si un fichier trié existe déjà, on propose de reprendre
     if os.path.exists(sortie):
-        reprendre = input(Un fichier de sauvegarde trié existe déjà ({sortie}). Veux-tu reprendre le tri ? (o/n) : ).strip().lower()
+        reprendre = input(f"Un fichier de sauvegarde trié existe déjà ({sortie}). Veux-tu reprendre le tri ? (o/n) : ").strip().lower()
         if reprendre == 'o':
             df_sortie = pd.read_csv(sortie)
             print(f"✅ Reprise du tri (déjà {len(df_sortie)} lignes traitées).")
@@ -53,11 +53,9 @@ def nettoyer_interactivement():
     print("="*50 + "\n")
 
     for index, row in df.iterrows():
-        # Vérifier si la ligne a déjà été traitée (si on reprend un fichier)
         nom = row.get('name', row.get('Restaurant_name', 'Inconnu'))
         adresse = row.get('address', row.get('adress', 'Adresse inconnue'))
         
-        # Affichage propre des infos du restaurant
         print(f"\n--- Ligne {index + 1} / {len(df)} ---")
         print(f"🍽️ Nom     : {nom}")
         print(f"📍 Adresse : {adresse}")
@@ -69,7 +67,6 @@ def nettoyer_interactivement():
         choix = input("\n👉 Garder ce restaurant ? (g = garder / s = supprimer / q = quitter) : ").strip().lower()
         
         if choix == 'g':
-            # Ajouter la ligne au DataFrame de sortie
             df_sortie = pd.concat([df_sortie, pd.DataFrame([row])], ignore_index=True)
             print("  ✅ [Conservé]")
         elif choix == 's':
@@ -78,11 +75,9 @@ def nettoyer_interactivement():
             print("\n💾 Sauvegarde intermédiaire et fermeture...")
             break
         else:
-            # Par défaut si l'utilisateur appuie juste sur Entrée ou met autre chose, on garde
             df_sortie = pd.concat([df_sortie, pd.DataFrame([row])], ignore_index=True)
             print("  ✅ [Conservé par défaut]")
             
-        # Sauvegarde automatique à chaque étape pour ne rien perdre
         df_sortie.to_csv(sortie, index=False, encoding='utf-8')
 
     print(f"\n🎉 Tri terminé ! Fichier propre enregistré sous : {sortie}")
