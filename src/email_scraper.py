@@ -37,4 +37,5 @@ def selectionner_fichier():
             break
         print("⚠️ Choix invalide.")
     base_name, ext = os.path.splitext(fichier_choisi)
-    fichier_sortie = fichier_choisi if base_name.endswith("_avec_emails") else f"{base_name
+    fichier_sortie = fichier_choisi if base_name.endswith("_avec_emails") else f"{base_name}_avec_emails{ext}"
+    return fichier_choisi, fichier_sortie
