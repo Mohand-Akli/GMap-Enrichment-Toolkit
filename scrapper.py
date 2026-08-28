@@ -32,12 +32,17 @@ def executer_script(chemin_script):
         print(f"\n{Color.RED}❌ Erreur : Le fichier '{chemin_script}' est introuvable.{Color.RESET}")
         return
     
+    # On cible explicitement le python situé dans le dossier venv de ton projet
+    python_venv = os.path.join(os.getcwd(), "venv", "bin", "python")
+    if not os.path.exists(python_venv):
+        python_venv = sys.executable  # Solution de repli si le venv n'est pas trouvé
+
     print(f"\n{Color.GREEN}🚀 Lancement de {chemin_script}...{Color.RESET}\n")
     try:
-        subprocess.run([sys.executable, chemin_script])
+        subprocess.run([python_venv, chemin_script])
     except Exception as e:
         print(f"\n{Color.RED}❌ Une erreur est survenue lors de l'exécution : {e}{Color.RESET}")
-
+        
 def main():
     os.makedirs("data", exist_ok=True)
     
