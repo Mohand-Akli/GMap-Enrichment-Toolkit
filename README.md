@@ -1,4 +1,4 @@
-# Advanced Business & Google Maps Scraper
+# Google Maps Scraper
 
 This Python toolset utilizes Playwright and specialized scraping modules to perform comprehensive data extraction. Based on your project structure, it goes beyond basic Google Maps scraping by incorporating dedicated modules to find emails, phone numbers, and VAT information for businesses.
 
