@@ -4,11 +4,6 @@ import pandas as pd
 import subprocess
 import urllib.parse
 
-# Au lieu de webbrowser.open(url_maps), utilise ceci :
-query = f"{nom} {adresse}"
-url_maps = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(query)}"
-subprocess.run(["open", url_maps])
-
 def selectionner_fichier():
     """Menu interactif pour choisir le fichier CSV à traiter."""
     fichiers = glob.glob("data/*.csv") + glob.glob("*.csv")
@@ -43,7 +38,6 @@ def nettoyer_interactivement():
         print(f"❌ Erreur lors de la lecture du fichier : {e}")
         return
 
-    # Si un fichier trié existe déjà, on propose de reprendre
     if os.path.exists(sortie):
         reprendre = input(f"Un fichier de sauvegarde trié existe déjà ({sortie}). Veux-tu reprendre le tri ? (o/n) : ").strip().lower()
         if reprendre == 'o':
@@ -55,8 +49,9 @@ def nettoyer_interactivement():
         df_sortie = pd.DataFrame(columns=df.columns)
 
     print("\n" + "="*50)
-    print(" 🛠️ MODE DE TRI INTERACTIF LIGNE PAR LIGNE")
-    print(" Commandes : [g]arder | [s]upprimer | [q]uitter et sauvegarder")
+    print(" 🛠️ TRI INTERACTIF AVEC OUVERTURE GOOGLE MAPS")
+    print(" 🌐 Le navigateur va s'ouvrir sur chaque restaurant.")
+    print(" Commandes : [g]arder | [s]upprimer | [q]uitter")
     print("="*50 + "\n")
 
     for index, row in df.iterrows():
@@ -71,6 +66,11 @@ def nettoyer_interactivement():
         if 'website' in row and pd.notna(row['website']):
             print(f"🌐 Site    : {row['website']}")
             
+        # 🌐 Ouverture automatique de Google Maps sur Mac pour ce restaurant précis
+        query = f"{nom} {adresse}"
+        url_maps = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(query)}"
+        subprocess.run(["open", url_maps])
+        
         choix = input("\n👉 Garder ce restaurant ? (g = garder / s = supprimer / q = quitter) : ").strip().lower()
         
         if choix == 'g':
