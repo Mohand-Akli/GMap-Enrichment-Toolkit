@@ -1,21 +1,42 @@
 import os
 import glob
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
+import requests
+from bs4 import BeautifulSoup
 import re
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from duckduckgo_search import DDGS
+
+# --- LISTES NOIRES (reprises de ta configuration) ---
+domaines_a_fuir = [
+    'facebook.com', 'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
+    'takeaway', 'foursquare', 'pagesjaunes', 'tiktok', 'haliago', 'restoconnection', 
+    'pagesdor', 'infobel', 'restaurantguru', 'data.gouv', 'just-eat', 'societe.com',
+    'annuaire', 'waterlooplaza', 'lefigaro.fr', 'mappy.com', 'kompass.com', 
+    'mon-resto-halal.com', 'thefork', 'eatbu.com', 'privateaser.com', 'marseille-tourisme',
+    'latranchesurmer-tourisme', 'infiniment-charentes', 'zoekkinderopvang', 'helan.be',
+    'service-public.gouv.fr', 'vdl.lu', 'sudinfo.be', 'companyweb.be', 'matablehalal',
+    'visit.brussels', 'cotedazurfrance', 'visitvar', 'trouvetonresto', 'resto.be'
+]
+
+prefixes_a_fuir = [
+    'app@', 'redaction@', 'webmaster@', 'support@', 'privacy@', 
+    'abuse@', 'noreply@', 'be@', 'admcommunale@', 'contactpunt'
+]
+
+emails_invalides_exacts = {
+    'name@example.com', 'nc@nc.fr', 'example@example.com', 'email@example.com', 'test@test.com'
+}
+
+motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
 
 def selectionner_fichier():
-    """Génère un menu interactif pour choisir le fichier CSV à traiter."""
+    """Identique à ta fonction d'origine pour choisir le CSV."""
     fichiers = glob.glob("data/*.csv") + glob.glob("*.csv")
     fichiers = list(set(fichiers))
     
     if not fichiers:
-        print("❌ Aucun fichier .csv trouvé dans le projet (dossier data/ ou racine).")
+        print("❌ Aucun fichier .csv trouvé.")
         exit()
         
     print("\n--- Fichiers CSV disponibles ---")
@@ -27,154 +48,117 @@ def selectionner_fichier():
         if choix.isdigit() and 1 <= int(choix) <= len(fichiers):
             fichier_choisi = fichiers[int(choix) - 1]
             break
-        print("⚠️ Choix invalide. Entrez un numéro correspondant à la liste.")
+        print("⚠️ Choix invalide.")
         
-    # Génère le nom du fichier de sortie
     base_name, ext = os.path.splitext(fichier_choisi)
-    if base_name.endswith("_avec_emails"):
-        fichier_sortie = fichier_choisi
-    else:
-        fichier_sortie = f"{base_name}_avec_emails{ext}"
-        
+    fichier_sortie = fichier_choisi if base_name.endswith("_avec_emails") else f"{base_name}_avec_emails{ext}"
     return fichier_choisi, fichier_sortie
 
-def scraper_emails_selenium_csv(fichier_entree, fichier_sortie):
-    print(f"\n📂 Initialisation...")
+def extraire_emails_de_url(url, timeout=5):
+    """Télécharge la page via requests et extrait les emails."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    }
+    emails_trouves = set()
+    try:
+        reponse = requests.get(url, headers=headers, timeout=timeout, verify=False)
+        reponse.raise_for_status()
+        
+        # BeautifulSoup pour extraire uniquement le texte visible ou les liens mailto:
+        soup = BeautifulSoup(reponse.text, 'html.parser')
+        
+        # 1. Chercher dans les liens "mailto:" (très précis)
+        for a_tag in soup.find_all('a', href=True):
+            if a_tag['href'].startswith('mailto:'):
+                emails_trouves.add(a_tag['href'].replace('mailto:', '').split('?')[0].strip())
+        
+        # 2. Chercher dans le texte global
+        texte_page = soup.get_text(separator=' ')
+        emails_sur_page = re.findall(motif_email, texte_page)
+        emails_trouves.update(emails_sur_page)
+        
+        # Nettoyage et filtrage selon tes listes
+        emails_propres = set()
+        for email in emails_trouves:
+            email_propre = email.lower().rstrip('.')
+            if email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
+                continue
+            if email_propre in emails_invalides_exacts:
+                continue
+            if any(email_propre.startswith(prefix) for prefix in prefixes_a_fuir):
+                continue
+            if any(domaine in email_propre for domaine in domaines_a_fuir):
+                continue
+            emails_propres.add(email_propre)
+            
+        return emails_propres
+    except Exception:
+        return set()
+
+def traiter_restaurant(nom_restaurant):
+    """Recherche le resto sur DDG, visite les 3 premiers liens, et retourne les emails."""
+    requete = f"{nom_restaurant} restaurant officiel contact"
+    liens_a_visiter = []
     
-    # 1. Charger le fichier CSV avec système de reprise
+    # Recherche via DuckDuckGo (sans navigateur)
+    try:
+        with DDGS() as ddgs:
+            resultats = list(ddgs.text(requete, max_results=5))
+            for res in resultats:
+                url = res.get('href', '')
+                if not any(domaine in url.lower() for domaine in domaines_a_fuir):
+                    liens_a_visiter.append(url)
+                    if len(liens_a_visiter) >= 3:
+                        break
+    except Exception:
+        pass
+        
+    emails_finaux = set()
+    for url in liens_a_visiter:
+        emails = extraire_emails_de_url(url)
+        emails_finaux.update(emails)
+        
+    return nom_restaurant, emails_finaux
+
+def scraper_emails_rapide(fichier_entree, fichier_sortie):
+    print(f"\n📂 Initialisation...")
     if os.path.exists(fichier_sortie):
         df = pd.read_csv(fichier_sortie)
-        print(f"✅ Reprise du fichier de sortie existant : {fichier_sortie}")
     else:
-        try:
-            df = pd.read_csv(fichier_entree)
-            print(f"✅ Chargement de la source et création de : {fichier_sortie}")
-        except FileNotFoundError:
-            print(f"❌ Le fichier '{fichier_entree}' est introuvable.")
-            return
+        df = pd.read_csv(fichier_entree)
 
-    # Vérifier que la colonne 'name' existe bien
-    if 'name' not in df.columns:
-        print("❌ La colonne 'name' est introuvable dans le CSV.")
-        return
-
-    # Utiliser la colonne 'mail' pour stocker les résultats
     if 'mail' not in df.columns:
         df['mail'] = ""
-        
     df['mail'] = df['mail'].astype(object)
 
-    # 2. Configuration de Chrome (Selenium)
-    print("🚀 Lancement de Chrome...")
-    options = Options()
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
+    # Identifier les restaurants qui n'ont pas encore d'e-mail
+    index_a_traiter = df[df['mail'].isna() | (df['mail'] == "")].index.tolist()
     
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
-    
-    motif_email = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
-    
-    # LISTE NOIRE DES DOMAINES
-    domaines_a_fuir = [
-        'facebook.com', 'tripadvisor', 'yelp', 'instagram', 'uber', 'deliveroo', 
-        'takeaway', 'foursquare', 'pagesjaunes', 'tiktok', 'haliago', 'restoconnection', 
-        'pagesdor', 'infobel', 'restaurantguru', 'data.gouv', 'just-eat', 'societe.com',
-        'annuaire', 'waterlooplaza', 'lefigaro.fr', 'mappy.com', 'kompass.com', 
-        'mon-resto-halal.com', 'thefork', 'eatbu.com', 'privateaser.com', 'marseille-tourisme',
-        'latranchesurmer-tourisme', 'infiniment-charentes', 'zoekkinderopvang', 'helan.be',
-        'service-public.gouv.fr', 'vdl.lu', 'sudinfo.be', 'companyweb.be', 'matablehalal',
-        'visit.brussels', 'cotedazurfrance', 'visitvar', 'trouvetonresto', 'resto.be'
-    ]
-    
-    # LISTE NOIRE DES PRÉFIXES
-    prefixes_a_fuir = [
-        'app@', 'redaction@', 'webmaster@', 'support@', 'privacy@', 
-        'abuse@', 'noreply@', 'be@', 'admcommunale@', 'contactpunt'
-    ]
-    
-    # FAUX EMAILS EXACTS
-    emails_invalides_exacts = {
-        'name@example.com', 'nc@nc.fr', 'example@example.com', 'email@example.com', 'test@test.com'
-    }
+    print(f"🚀 Démarrage du scraping multi-thread pour {len(index_a_traiter)} restaurants...")
 
-    # 3. Boucle sur chaque restaurant du fichier
-    for index, row in df.iterrows():
-        nom_restaurant = row['name']
+    # Exécution en parallèle (10 requêtes simultanées)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(traiter_restaurant, df.at[idx, 'name']): idx for idx in index_a_traiter}
         
-        # Sécurité : Si un e-mail a déjà été scrappé, on passe au suivant
-        if pd.notna(row.get('mail')) and str(row.get('mail')).strip() != "":
-            print(f"\n⏭️ [IGNORÉ] {nom_restaurant} a déjà un e-mail enregistré.")
-            continue
-
-        print(f"\n🔍 [GOOGLE] Recherche pour : {nom_restaurant}")
-        requete = f"{nom_restaurant} restaurant officiel contact"
-        driver.get(f"https://www.google.com/search?q={requete}")
-        
-        time.sleep(3) 
-
-        liens_trouves = []
-        try:
-            elements_liens = driver.find_elements(By.CSS_SELECTOR, "#search a")
-            for element in elements_liens:
-                href = element.get_attribute("href")
-                if href and href.startswith("http") and "google.com" not in href:
-                    if "translate.goog" not in href and "webcache" not in href:
-                        if not any(domaine in href.lower() for domaine in domaines_a_fuir):
-                            if href not in liens_trouves:
-                                liens_trouves.append(href)
-                            if len(liens_trouves) >= 3:
-                                break
-        except Exception:
-            print("   ❌ Erreur lors de la lecture des résultats Google.")
-
-        if not liens_trouves:
-            print("   ⚠️ Google n'a renvoyé aucun lien exploitable.")
-            continue
-
-        emails_finaux = set()
-        for url in liens_trouves:
-            print(f"  🌐 Visite de : {url}")
-            try:
-                driver.get(url)
-                time.sleep(3)
-                texte_page = driver.find_element(By.TAG_NAME, "body").text
-                emails_sur_page = re.findall(motif_email, texte_page)
+        for future in as_completed(futures):
+            idx = futures[future]
+            nom, emails = future.result()
+            
+            if emails:
+                emails_str = ", ".join(emails)
+                df.at[idx, 'mail'] = emails_str
+                print(f"✅ {nom} : {emails_str}")
+            else:
+                print(f"❌ {nom} : Aucun e-mail")
                 
-                for email in emails_sur_page:
-                    email_propre = email.lower().rstrip('.')
-                    
-                    if email_propre.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
-                        continue
-                    if email_propre in emails_invalides_exacts:
-                        continue
-                    if any(email_propre.startswith(prefix) for prefix in prefixes_a_fuir):
-                        continue
-                    if any(domaine in email_propre for domaine in domaines_a_fuir):
-                        continue
-                        
-                    emails_finaux.add(email_propre)
-                    
-            except Exception:
-                print(f"     -> ❌ Impossible de charger ce site.")
+            # Sauvegarde régulière (toutes les lignes) pour ne rien perdre en cas de crash
+            df.to_csv(fichier_sortie, index=False, encoding='utf-8')
 
-        # 4. Enregistrement des résultats
-        if emails_finaux:
-            emails_str = ", ".join(emails_finaux)
-            df.at[index, 'mail'] = emails_str
-            print(f"   ✅ E-mail(s) trouvé(s) : {emails_str}")
-        else:
-            print(f"   ❌ Aucun e-mail valide trouvé sur ces pages.")
+    print(f"\n🎉 Fin du scraping ! Fichier mis à jour : {fichier_sortie}")
 
-        # 5. Sauvegarde dans le NOUVEAU fichier CSV
-        df.to_csv(fichier_sortie, index=False, encoding='utf-8')
-        print(f"   💾 Données sauvegardées dans {fichier_sortie}.")
-        
-    driver.quit()
-    print(f"\n🎉 Fin du scraping ! Toutes les données sont enregistrées dans {fichier_sortie}.")
-
-# --- LANCEMENT ---
 if __name__ == "__main__":
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     entree, sortie = selectionner_fichier()
-    scraper_emails_selenium_csv(entree, sortie)
+    scraper_emails_rapide(entree, sortie)
