@@ -5,11 +5,8 @@ This Python toolset utilizes Playwright and specialized scraping modules to perf
 <br>
 To do a custom web scraping project you can find me on Upwork or on Linkedin<br><br>
 
-<a href="https://www.upwork.com/freelancers/~01dbb4d47d167c2d43" target="_blank">
-<img src=https://img.shields.io/badge/Upwork-6FDA44?&style=for-the-badge&logo=medium&logoColor=white alt=medium style="margin-bottom: 5px;" />
-</a>
 
-<a href="https://www.linkedin.com/in/zohaibbashir" target="_blank">
+<a href="https://www.linkedin.com/in/mohand-akli-zidani" target="_blank">
 <img src="https://img.shields.io/badge/LinkedIn-0077B5?&style=for-the-badge&logo=linkedin&logoColor=white" alt="linkedin" style="margin-bottom: 5px;" />
 </a>
 
