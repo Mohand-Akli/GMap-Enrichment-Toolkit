@@ -1,6 +1,13 @@
 import os
 import glob
 import pandas as pd
+import subprocess
+import urllib.parse
+
+# Au lieu de webbrowser.open(url_maps), utilise ceci :
+query = f"{nom} {adresse}"
+url_maps = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(query)}"
+subprocess.run(["open", url_maps])
 
 def selectionner_fichier():
     """Menu interactif pour choisir le fichier CSV à traiter."""
