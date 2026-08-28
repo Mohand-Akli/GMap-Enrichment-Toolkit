@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 # --- LISTES NOIRES (reprises de ta configuration) ---
 domaines_a_fuir = [
