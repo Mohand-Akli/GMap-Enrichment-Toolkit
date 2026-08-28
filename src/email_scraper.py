@@ -39,3 +39,6 @@ def selectionner_fichier():
     base_name, ext = os.path.splitext(fichier_choisi)
     fichier_sortie = fichier_choisi if base_name.endswith("_avec_emails") else f"{base_name}_avec_emails{ext}"
     return fichier_choisi, fichier_sortie
+if __name__ == "__main__":
+    entree, sortie = selectionner_fichier()
+    scraper_emails_rapide(entree, sortie)
