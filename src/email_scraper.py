@@ -127,11 +127,10 @@ def scraper_emails_rapide(fichier_entree, fichier_sortie):
     else:
         df = pd.read_csv(fichier_entree)
 
-    # Vérification de sécurité
-    if 'name' not in df.columns:
-        print(f"❌ Erreur : La colonne 'name' est introuvable dans le CSV.")
+    # Vérification de sécurité adaptée à ton CSV
+    if 'Restaurant_name' not in df.columns:
+        print(f"❌ Erreur : La colonne 'Restaurant_name' est introuvable dans le CSV.")
         print(f"👉 Colonnes détectées dans ton fichier : {list(df.columns)}")
-        print("Veuillez renommer l'en-tête de votre colonne de noms en 'name'.")
         return
 
     if 'mail' not in df.columns:
@@ -149,7 +148,8 @@ def scraper_emails_rapide(fichier_entree, fichier_sortie):
 
     # Exécution en parallèle (10 requêtes simultanées)
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(traiter_restaurant, df.at[idx, 'name']): idx for idx in index_a_traiter}
+        # On utilise 'Restaurant_name' pour cibler la bonne colonne
+        futures = {executor.submit(traiter_restaurant, df.at[idx, 'Restaurant_name']): idx for idx in index_a_traiter}
         
         for future in as_completed(futures):
             idx = futures[future]
@@ -162,11 +162,11 @@ def scraper_emails_rapide(fichier_entree, fichier_sortie):
             else:
                 print(f"❌ {nom} : Aucun e-mail")
                 
-            # Sauvegarde régulière (toutes les lignes) pour ne rien perdre en cas de crash
+            # Sauvegarde régulière
             df.to_csv(fichier_sortie, index=False, encoding='utf-8')
 
     print(f"\n🎉 Fin du scraping ! Fichier mis à jour : {fichier_sortie}")
-
+    
 if __name__ == "__main__":
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
