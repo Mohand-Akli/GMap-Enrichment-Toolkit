@@ -127,6 +127,13 @@ def scraper_emails_rapide(fichier_entree, fichier_sortie):
     else:
         df = pd.read_csv(fichier_entree)
 
+    # Vérification de sécurité
+    if 'name' not in df.columns:
+        print(f"❌ Erreur : La colonne 'name' est introuvable dans le CSV.")
+        print(f"👉 Colonnes détectées dans ton fichier : {list(df.columns)}")
+        print("Veuillez renommer l'en-tête de votre colonne de noms en 'name'.")
+        return
+
     if 'mail' not in df.columns:
         df['mail'] = ""
     df['mail'] = df['mail'].astype(object)
@@ -134,6 +141,10 @@ def scraper_emails_rapide(fichier_entree, fichier_sortie):
     # Identifier les restaurants qui n'ont pas encore d'e-mail
     index_a_traiter = df[df['mail'].isna() | (df['mail'] == "")].index.tolist()
     
+    if not index_a_traiter:
+        print("✅ Tous les restaurants ont déjà un e-mail enregistré.")
+        return
+        
     print(f"🚀 Démarrage du scraping multi-thread pour {len(index_a_traiter)} restaurants...")
 
     # Exécution en parallèle (10 requêtes simultanées)
