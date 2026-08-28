@@ -1,47 +1,86 @@
-# Restaurant Scraping & Data Processing Pipeline
+# Advanced Business & Google Maps Scraper
 
-This Python script utilizes a modular framework to perform web scraping, data enrichment, cleaning, and interactive manual validation for restaurant datasets. It features an interactive color-coded terminal menu and seamless Google Maps visual verification.
-
-## Read Prerequisites
-Latest python was not used and is not suggested
+This Python toolset utilizes Playwright and specialized scraping modules to perform comprehensive data extraction. Based on your project structure, it goes beyond basic Google Maps scraping by incorporating dedicated modules to find emails, phone numbers, and VAT information for businesses.
 
 <br>
-To do a custom web scraping project you can find me on GitHub or LinkedIn<br><br>
+To do a custom web scraping project you can find me on Upwork or on Linkedin<br><br>
 
-<a href="https://github.com/Mohand-Akli" target="_blank">
-<img src=https://img.shields.io/badge/GitHub-181717?&style=for-the-badge&logo=github&logoColor=white alt=github style="margin-bottom: 5px;" />
+<a href="https://www.upwork.com/freelancers/~01dbb4d47d167c2d43" target="_blank">
+<img src=https://img.shields.io/badge/Upwork-6FDA44?&style=for-the-badge&logo=medium&logoColor=white alt=medium style="margin-bottom: 5px;" />
 </a>
 
-<a href="https://www.linkedin.com" target="_blank">
+<a href="https://www.linkedin.com/in/zohaibbashir" target="_blank">
 <img src="https://img.shields.io/badge/LinkedIn-0077B5?&style=for-the-badge&logo=linkedin&logoColor=white" alt="linkedin" style="margin-bottom: 5px;" />
 </a>
-
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
 - [Key Features](#key-features)
+- [Project Structure](#project-structure)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Project Structure](#project-structure)
 - [Notes](#notes)
 - [License](#license)
 
 ## Prerequisites
-- Python 3.8 or higher installed on your system.
-- Google Chrome or a compatible browser installed (for map visualization and automation).
+- Python 3.8 or 3.9 (Python 3.10+ may not be compatible with some dependencies)
+- Google Chrome or Chromium browser installed (for Playwright)
 
 ## Key Features
-- **Interactive Menu (`scrapper.py`)**: A centralized, color-coded terminal dashboard to launch all functional modules easily.
-- **Global Pipeline (`main.py`)**: Automates initial geographic data extraction and dataset merging.
-- **Interactive Cleaning & Validation (`data_processor.py`)**: Features a row-by-row manual verification process that automatically opens Google Maps for each restaurant so you can check photos and reviews before deciding to keep or discard entries.
-- **Email Scraping (`email_scraper.py`)**: Extracts contact email addresses automatically.
-- **Google Maps Scraping (`gmaps_scrapper.py`)**: Fetches detailed metadata including ratings, review counts, place types, and operating hours.
-- **Phone Number Recovery (`phone_scraper.py`)**: Collects and formats restaurant telephone numbers.
-- **VAT Finder (`vat_finder.py`)**: Identifies corporate and business VAT numbers.
+- **Google Maps Scraping:** Extract business names, addresses, websites, ratings, and operating hours (`gmaps_scrapper.py`).
+- **Email Extraction:** Crawl associated business websites to locate and extract contact email addresses (`email_scraper.py`).
+- **Phone Number Scraping:** Parse websites and listings to identify direct contact numbers (`phone_scraper.py`).
+- **VAT Finder:** Automatically detect and extract Value Added Tax (VAT) numbers for corporate entities (`vat_finder.py`).
+- **Data Cleansing & Processing:** Organize and format the raw extracted data into clean, export-ready structures (`data_processor.py`).
+- **CSV Export:** Save all aggregated business intelligence into a consolidated CSV file.
+
+## Project Structure
+```text
+├── requirements.txt
+├── scrapper.py
+└── src/
+    ├── __init__.py
+    ├── data_processor.py
+    ├── email_scraper.py
+    ├── gmaps_scrapper.py
+    ├── main.py
+    ├── phone_scraper.py
+    └── vat_finder.py
+```
 
 ## Installation
 
 1. Clone this repository:
    ```bash
-   git clone [https://github.com/Mohand-Akli/scrapper.git](https://github.com/Mohand-Akli/scrapper.git)
-   cd scrapper
+   git clone https://github.com/yourusername/your-repo-name.git
+   cd your-repo-name
+   ```
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Install Playwright browsers:
+   ```bash
+   playwright install
+   ```
+
+## Usage
+
+Run the main script to initiate the extraction pipeline:
+
+```bash
+python src/main.py -s "IT Companies in Paris, France" -t 20 -o results.csv
+```
+
+- `-s` or `--search`: Search query for target businesses.
+- `-t` or `--total`: Number of results to scrape.
+- `-o` or `--output`: Output CSV file path.
+- `--append`: Append results to the output file instead of overwriting.
+
+## Notes
+- The script relies on Playwright and may open a visible browser window depending on your configuration.
+- DOM structures on Google Maps and third-party websites change frequently; you may need to update selectors in the respective `src/` modules if extractions fail.
+- Avoid running too many concurrent scrapes in a short period to prevent rate-limiting or blocks.
+
+## License
+MIT
